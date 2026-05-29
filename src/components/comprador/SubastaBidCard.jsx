@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { formatCOP } from '../../utils/format'
 import CountdownTimer from '../admin/CountdownTimer'
+import {
+  getLoteId,
+  getMunicipio,
+  getCantidad,
+  getGanaderoNombre,
+} from '../../utils/subastas'
 
 const MIN_INCREMENT = 100000
 
@@ -10,7 +16,15 @@ export default function SubastaBidCard({
   buyerName,
   onBidSuccess,
 }) {
-  const mejorOferta = Number(subasta.mejor_oferta) || 0
+  const normalized = {
+    ...subasta,
+    lote: getLoteId(subasta),
+    municipio: getMunicipio(subasta),
+    cantidad: getCantidad(subasta),
+    ganaderoNombre: getGanaderoNombre(subasta),
+  }
+
+  const mejorOferta = Number(normalized.mejor_oferta) || 0
   const [bidAmount, setBidAmount] = useState(mejorOferta + MIN_INCREMENT)
   const [shake, setShake] = useState(false)
   const [flash, setFlash] = useState(false)
@@ -33,7 +47,7 @@ export default function SubastaBidCard({
     }
 
     setSubmitting(true)
-    const success = await onBidSuccess(subasta, monto)
+    const success = await onBidSuccess(normalized, monto)
     setSubmitting(false)
 
     if (success) {
@@ -41,8 +55,6 @@ export default function SubastaBidCard({
       setTimeout(() => setFlash(false), 2500)
     }
   }
-
-  const ganaderoNombre = subasta.ganaderos?.nombre ?? 'Ganadero'
 
   return (
     <div
@@ -66,18 +78,18 @@ export default function SubastaBidCard({
 
       <div className="p-4 md:p-5 space-y-3">
         <div>
-          <h3 className="font-bold text-primary text-lg">{ganaderoNombre}</h3>
+          <h3 className="font-bold text-primary text-lg">{normalized.ganaderoNombre}</h3>
           <p className="text-sm text-gray-600 flex items-center gap-1">
             <MapPin className="w-3.5 h-3.5 text-accent" />
-            {subasta.municipio ?? '—'}
+            {normalized.municipio}
           </p>
         </div>
 
         <div className="text-sm text-gray-700 space-y-1">
-          <p><span className="text-gray-500">Lote:</span> {subasta.lote ?? subasta.id}</p>
-          <p><span className="text-gray-500">Raza:</span> {subasta.raza ?? '—'}</p>
-          <p><span className="text-gray-500">Cantidad:</span> {subasta.cantidad_animales ?? '—'} animales</p>
-          <p><span className="text-gray-500">Peso estimado:</span> {subasta.peso_estimado ? `${subasta.peso_estimado} kg` : '—'}</p>
+          <p><span className="text-gray-500">Lote:</span> {normalized.lote}</p>
+          <p><span className="text-gray-500">Raza:</span> {normalized.raza ?? '—'}</p>
+          <p><span className="text-gray-500">Cantidad:</span> {normalized.cantidad ?? '—'} animales</p>
+          <p><span className="text-gray-500">Peso estimado:</span> {normalized.peso_estimado ? `${normalized.peso_estimado} kg` : '—'}</p>
         </div>
 
         <p className="text-xs text-primary bg-primary/5 rounded-lg px-3 py-2">
@@ -87,13 +99,13 @@ export default function SubastaBidCard({
         <div className="bg-accent/10 border border-accent/30 rounded-lg px-4 py-3">
           <p className="text-sm text-gray-800">
             💰 Mejor oferta:{' '}
-            <strong className="text-accent text-base">{formatCOP(subasta.mejor_oferta)}</strong>
-            {subasta.mejor_ofertante && (
-              <span className="text-gray-600"> — {subasta.mejor_ofertante}</span>
+            <strong className="text-accent text-base">{formatCOP(normalized.mejor_oferta)}</strong>
+            {normalized.mejor_ofertante && (
+              <span className="text-gray-600"> — {normalized.mejor_ofertante}</span>
             )}
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            ⏱ Cierra en: <CountdownTimer fechaCierre={subasta.fecha_cierre} />
+            ⏱ Cierra en: <CountdownTimer fechaCierre={normalized.fecha_cierre} />
           </p>
         </div>
 

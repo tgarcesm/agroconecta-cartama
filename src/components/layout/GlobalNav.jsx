@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import Logo from './Logo'
 
 const MODULES = [
   { path: '/admin', label: 'Panel Admin', key: 'admin' },
@@ -18,11 +19,8 @@ export default function GlobalNav({ active }) {
   }
 
   return (
-    <header className="global-nav bg-white border-b border-gray-200 flex items-center px-6">
-      <Link to="/" className="shrink-0 mr-8">
-        <span className="font-bold text-primary text-sm tracking-wide">AGROCONECTA</span>
-        <span className="text-accent text-xs ml-1.5 font-medium">CARTAMA</span>
-      </Link>
+    <header className="global-nav bg-white border-b border-gray-200 flex items-center px-4 md:px-6">
+      <Logo variant="nav" linkTo="/" className="shrink-0 mr-4 md:mr-8" />
 
       <nav className="flex-1 flex items-center justify-center gap-0.5 md:gap-1 overflow-x-auto">
         {MODULES.map(({ path, label, key }) => {
@@ -43,7 +41,7 @@ export default function GlobalNav({ active }) {
         })}
       </nav>
 
-      <div className="w-32 shrink-0 hidden lg:block" />
+      <div className="w-24 md:w-32 shrink-0 hidden lg:block" />
     </header>
   )
 }

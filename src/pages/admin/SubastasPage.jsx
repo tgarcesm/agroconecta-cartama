@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { formatCOP } from '../../utils/format'
+import { normalizeSubastas, FALLBACK_SUBASTAS } from '../../utils/subastas'
 import EstadoBadge from '../../components/admin/EstadoBadge'
 import CountdownTimer from '../../components/admin/CountdownTimer'
+import { getLoteId, getMunicipio, getCantidad, getGanaderoNombre } from '../../utils/subastas'
 
 const FILTERS = [
   { id: 'todas', label: 'Todas' },
@@ -19,10 +21,14 @@ export default function SubastasPage() {
   async function fetchSubastas() {
     const { data, error } = await supabase
       .from('subastas')
-      .select('*, ganaderos(nombre)')
+      .select('*, ganaderos(nombre, municipio)')
       .order('fecha_cierre', { ascending: true })
 
-    if (!error && data) setSubastas(data)
+    if (!error && data?.length) {
+      setSubastas(normalizeSubastas(data))
+    } else {
+      setSubastas(normalizeSubastas(FALLBACK_SUBASTAS))
+    }
     setLoading(false)
   }
 
@@ -66,7 +72,7 @@ export default function SubastasPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-400">Cargando subastas…</p>
+        <p className="text-gray-400">Cargando…</p>
       ) : filtered.length === 0 ? (
         <p className="text-gray-400">No hay subastas en esta categoría</p>
       ) : (
@@ -75,20 +81,24 @@ export default function SubastasPage() {
             <div key={s.id} className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
               <div className="bg-primary px-4 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-background font-semibold">{s.ganaderos?.nombre ?? '—'}</p>
-                  <p className="text-background/70 text-sm">{s.municipio ?? '—'}</p>
+                  <p className="text-background font-semibold">{getGanaderoNombre(s)}</p>
+                  <p className="text-background/70 text-sm">{getMunicipio(s)}</p>
                 </div>
                 <EstadoBadge estado={s.estado} />
               </div>
 
               <div className="p-4 flex-1 space-y-2 text-sm">
                 <div className="flex justify-between">
+                  <span className="text-gray-500">Lote</span>
+                  <span className="font-medium">{getLoteId(s)}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-500">Raza</span>
                   <span className="font-medium">{s.raza ?? '—'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Cantidad</span>
-                  <span className="font-medium">{s.cantidad_animales ?? '—'} animales</span>
+                  <span className="font-medium">{getCantidad(s) ?? '—'} animales</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Peso estimado</span>

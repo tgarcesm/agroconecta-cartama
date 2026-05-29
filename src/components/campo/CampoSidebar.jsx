@@ -1,4 +1,5 @@
 import { Home, CheckSquare, Clock } from 'lucide-react'
+import Logo from '../layout/Logo'
 
 const NAV_ITEMS = [
   { id: 'inicio', label: 'Inicio', icon: Home },
@@ -9,11 +10,8 @@ const NAV_ITEMS = [
 export default function CampoSidebar({ activeSection, onNavigate }) {
   return (
     <aside className="sidebar-below-nav fixed left-0 w-60 bg-primary flex flex-col z-10">
-      <div className="px-5 py-5 border-b border-white/10">
-        <h1 className="text-background font-bold text-lg leading-tight tracking-wide">
-          AGROCONECTA
-        </h1>
-        <p className="text-accent text-sm font-medium tracking-widest">CARTAMA</p>
+      <div className="px-4 py-5 border-b border-white/10 flex justify-center">
+        <Logo variant="sidebar" />
       </div>
 
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { normalizeSubastas, FALLBACK_SUBASTAS, getLoteId, getMunicipio, getDescripcion, getGanaderoNombre } from '../../utils/subastas'
 
 const STATIC_COMPLETED = [
   {
@@ -129,16 +130,29 @@ export default function CampoHome({ onStartVerification }) {
   async function fetchVisitas() {
     const { data, error } = await supabase
       .from('subastas')
-      .select('*, ganaderos(nombre)')
+      .select('*, ganaderos(nombre, municipio)')
       .in('estado', ['pendiente_verificacion', 'activa'])
       .order('created_at', { ascending: false })
 
-    if (!error && data) {
+    if (!error && data?.length) {
       setSubastas(
-        data.map((s) => ({
+        normalizeSubastas(data).map((s) => ({
           ...s,
-          ganaderoNombre: s.ganaderos?.nombre ?? 'Sin nombre',
-          descripcion: s.lote ?? s.descripcion,
+          ganaderoNombre: getGanaderoNombre(s),
+          descripcion: getDescripcion(s),
+          municipio: getMunicipio(s),
+          lote: getLoteId(s),
+        }))
+      )
+    } else {
+      setSubastas(
+        normalizeSubastas(FALLBACK_SUBASTAS.filter((s) => s.estado === 'pendiente_verificacion')).map((s) => ({
+          ...s,
+          ganaderoNombre: getGanaderoNombre(s),
+          descripcion: getDescripcion(s),
+          municipio: getMunicipio(s),
+          lote: getLoteId(s),
+          estado: 'pendiente_verificacion',
         }))
       )
     }
@@ -168,7 +182,7 @@ export default function CampoHome({ onStartVerification }) {
   const visitList = (
     <>
       {loading ? (
-        <p className="text-gray-400 text-sm text-center py-6">Cargando visitas…</p>
+        <p className="text-gray-400 text-sm text-center py-6">Cargando…</p>
       ) : (
         <div className="space-y-3">
           {subastas.map((visit) => (

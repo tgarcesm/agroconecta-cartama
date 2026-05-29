@@ -1,19 +1,52 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { formatCOP } from '../../utils/format'
+import { getLoteId } from '../../utils/subastas'
 
 const MIN_INCREMENT = 100000
 
-export default function BidModal({ subasta, buyer, onClose, onSubmit }) {
+export default function BidModal({
+  subasta,
+  buyerName = 'Usuario',
+  onClose,
+  onSubmit,
+  demoAuto = null,
+}) {
   const mejorOferta = Number(subasta?.mejor_oferta) || 0
   const [monto, setMonto] = useState(mejorOferta + MIN_INCREMENT)
   const [shake, setShake] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const demoSubmitted = useRef(false)
 
   useEffect(() => {
-    setMonto(mejorOferta + MIN_INCREMENT)
-  }, [mejorOferta])
+    setMonto(demoAuto?.monto ?? mejorOferta + MIN_INCREMENT)
+    setSuccess(false)
+    setError('')
+    demoSubmitted.current = false
+  }, [mejorOferta, demoAuto, subasta?.id])
+
+  async function submitAmount(amount) {
+    setSubmitting(true)
+    const ok = await onSubmit(subasta, amount)
+    setSubmitting(false)
+
+    if (ok) {
+      setSuccess(true)
+      setTimeout(onClose, demoAuto ? 900 : 1200)
+    }
+  }
+
+  useEffect(() => {
+    if (!demoAuto?.submitAfter || demoSubmitted.current) return
+
+    const t = setTimeout(async () => {
+      demoSubmitted.current = true
+      await submitAmount(demoAuto.monto)
+    }, demoAuto.submitAfter)
+
+    return () => clearTimeout(t)
+  }, [demoAuto])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -27,29 +60,24 @@ export default function BidModal({ subasta, buyer, onClose, onSubmit }) {
       return
     }
 
-    setSubmitting(true)
-    const ok = await onSubmit(subasta, amount)
-    setSubmitting(false)
-
-    if (ok) {
-      setSuccess(true)
-      setTimeout(onClose, 1200)
-    }
+    await submitAmount(amount)
   }
 
-  const lote = subasta?.lote ?? `#${subasta?.id}`
+  const lote = getLoteId(subasta)
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center">
-      <div className="bg-white w-full md:max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden animate-fade-in">
+      <div className="bg-white w-full md:max-w-sm rounded-t-2xl md:rounded-2xl overflow-hidden">
         <div className="bg-[#075E54] px-5 py-4 flex items-center justify-between">
           <div>
             <p className="text-white font-semibold">💵 Hacer oferta</p>
             <p className="text-white/70 text-xs">{lote}</p>
           </div>
-          <button type="button" onClick={onClose} className="text-white/80 text-xl leading-none px-2">
-            ×
-          </button>
+          {!demoAuto && (
+            <button type="button" onClick={onClose} className="text-white/80 text-xl leading-none px-2">
+              ×
+            </button>
+          )}
         </div>
 
         {success ? (
@@ -61,7 +89,7 @@ export default function BidModal({ subasta, buyer, onClose, onSubmit }) {
         ) : (
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             <p className="text-sm text-[#667781]">
-              Puja como <strong className="text-[#111B21]">{buyer?.emoji} {buyer?.name}</strong>
+              Puja como <strong className="text-[#111B21]">{buyerName}</strong>
             </p>
 
             <div className="bg-[#F0F2F5] rounded-lg p-3 text-sm">
@@ -76,10 +104,11 @@ export default function BidModal({ subasta, buyer, onClose, onSubmit }) {
               <input
                 type="number"
                 value={monto}
+                readOnly={!!demoAuto}
                 onChange={(e) => setMonto(e.target.value)}
                 className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#075E54]/30 ${
                   shake ? 'animate-shake border-red-400' : 'border-[#E9EDEF]'
-                }`}
+                } ${demoAuto ? 'bg-[#F0F2F5]' : ''}`}
                 step={50000}
               />
               {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -90,10 +119,10 @@ export default function BidModal({ subasta, buyer, onClose, onSubmit }) {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !!demoAuto}
               className="w-full bg-[#075E54] text-white font-medium py-3 rounded-xl hover:bg-[#064E46] disabled:opacity-50"
             >
-              {submitting ? 'Enviando…' : '🔨 Confirmar oferta'}
+              {submitting ? 'Enviando…' : demoAuto ? 'Confirmando oferta…' : '🔨 Confirmar oferta'}
             </button>
           </form>
         )}

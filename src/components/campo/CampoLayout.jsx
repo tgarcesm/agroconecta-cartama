@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import GlobalNav from '../layout/GlobalNav'
+import Logo from '../layout/Logo'
 import CampoSidebar from './CampoSidebar'
 
 function formatToday() {
@@ -45,7 +46,7 @@ export default function CampoLayout({
                   <ArrowLeft className="w-5 h-5" />
                 </Link>
               )}
-              <span className="text-background font-bold text-sm tracking-wide">AGROCONECTA</span>
+              <Logo variant="icon" linkTo="/" framed />
             </div>
             <span className="text-background/70 text-xs font-medium">App de Campo</span>
           </header>

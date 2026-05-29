@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Phone, Video, MoreVertical } from 'lucide-react'
 import { CONVERSATIONS } from '../../constants/whatsapp'
+import Logo from '../layout/Logo'
 
 function WhatsAppIcon() {
   return (
@@ -24,7 +25,11 @@ export default function ChatHeader({ chatId, onBack, showBack = false }) {
         <ArrowLeft className="w-5 h-5" />
       </Link>
 
-      <WhatsAppIcon />
+      {chatId === 'main' ? (
+        <Logo variant="icon" framed className="shrink-0" />
+      ) : (
+        <WhatsAppIcon />
+      )}
 
       <div className="flex-1 min-w-0">
         <p className="text-white font-medium text-sm truncate">{chat.headerTitle}</p>

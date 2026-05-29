@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Camera, Play, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { getMunicipio, getDescripcion, getGanaderoNombre, getCantidad } from '../../utils/subastas'
+import Logo from '../../components/layout/Logo'
 
 const VISITADOR = 'Carlos Mendoza'
 const EDAD_OPTIONS = ['12-18 meses', '18-24 meses', '24-36 meses', '+36 meses']
@@ -112,7 +114,7 @@ export default function VerificationFlow({ subasta, onComplete }) {
   const [success, setSuccess] = useState(false)
 
   const [form, setForm] = useState({
-    cantidad: subasta.cantidad_animales ?? subasta.cantidad ?? '',
+    cantidad: getCantidad(subasta) ?? '',
     peso: subasta.peso_estimado ?? '',
     raza: subasta.raza ?? '',
     edad: '18-24 meses',
@@ -127,7 +129,9 @@ export default function VerificationFlow({ subasta, onComplete }) {
   const fichaNum = `AC-${Math.floor(1000 + Math.random() * 9000)}`
   const now = new Date().toLocaleString('es-CO')
   const photosCount = Object.values(photos).filter(Boolean).length
-  const ganaderoNombre = subasta.ganaderoNombre ?? subasta.ganaderos?.nombre ?? 'el ganadero'
+  const ganaderoNombre = getGanaderoNombre(subasta)
+  const municipio = getMunicipio(subasta)
+  const descripcion = getDescripcion(subasta)
 
   function goToStep(next) {
     setFade(false)
@@ -151,7 +155,13 @@ export default function VerificationFlow({ subasta, onComplete }) {
 
     await supabase
       .from('subastas')
-      .update({ estado: 'activa', fecha_cierre: fechaCierre })
+      .update({
+        estado: 'activa',
+        fecha_cierre: fechaCierre,
+        cantidad: Number(form.cantidad) || null,
+        peso_estimado: Number(form.peso) || null,
+        raza: form.raza,
+      })
       .eq('id', subasta.id)
 
     setSubmitting(false)
@@ -178,8 +188,8 @@ export default function VerificationFlow({ subasta, onComplete }) {
 
           <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm space-y-2 text-sm">
             <p><span className="text-gray-500">Ganadero:</span> <strong>{ganaderoNombre}</strong></p>
-            <p><span className="text-gray-500">Municipio:</span> {subasta.municipio}</p>
-            <p><span className="text-gray-500">Descripción:</span> {subasta.descripcion ?? subasta.lote ?? '—'}</p>
+            <p><span className="text-gray-500">Municipio:</span> {municipio}</p>
+            <p><span className="text-gray-500">Descripción:</span> {descripcion}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -272,9 +282,9 @@ export default function VerificationFlow({ subasta, onComplete }) {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden text-sm">
-              <div className="bg-primary px-4 py-3 text-center">
-                <p className="text-background font-bold text-xs tracking-widest">AGROCONECTA CARTAMA</p>
-                <p className="text-background/80 text-[10px] mt-0.5">FICHA TÉCNICA DE VERIFICACIÓN</p>
+              <div className="bg-primary px-4 py-3 flex flex-col items-center gap-1">
+                <Logo variant="nav" framed />
+                <p className="text-background/80 text-[10px] mt-1">FICHA TÉCNICA DE VERIFICACIÓN</p>
               </div>
               <div className="p-4 md:p-5 space-y-2">
                 <div className="flex justify-between text-xs"><span className="text-gray-500">Número de ficha</span><span className="font-mono font-bold text-primary">{fichaNum}</span></div>
@@ -283,7 +293,7 @@ export default function VerificationFlow({ subasta, onComplete }) {
                 <hr className="border-gray-100 my-2" />
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <span className="text-gray-500">Ganadero</span><span className="font-medium">{ganaderoNombre}</span>
-                  <span className="text-gray-500">Municipio</span><span>{subasta.municipio}</span>
+                  <span className="text-gray-500">Municipio</span><span>{municipio}</span>
                   <span className="text-gray-500">Cantidad</span><span>{form.cantidad}</span>
                   <span className="text-gray-500">Peso prom.</span><span>{form.peso} kg</span>
                   <span className="text-gray-500">Raza</span><span>{form.raza}</span>
@@ -329,7 +339,7 @@ export default function VerificationFlow({ subasta, onComplete }) {
             <h3 className="font-bold text-primary border-b border-gray-100 pb-2">Resumen de verificación</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-xs md:text-sm">
               <span className="text-gray-500">Ganadero</span><span className="font-medium col-span-1">{ganaderoNombre}</span>
-              <span className="text-gray-500">Municipio</span><span>{subasta.municipio}</span>
+              <span className="text-gray-500">Municipio</span><span>{municipio}</span>
               <span className="text-gray-500">Cantidad</span><span>{form.cantidad} animales</span>
               <span className="text-gray-500">Peso promedio</span><span>{form.peso} kg</span>
               <span className="text-gray-500">Raza</span><span>{form.raza}</span>

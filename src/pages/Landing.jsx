@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { BarChart2, MapPin, MessageCircle } from 'lucide-react'
+import Logo from '../components/layout/Logo'
 
 const cards = [
   {
@@ -17,7 +18,7 @@ const cards = [
   {
     title: 'Canal WhatsApp',
     icon: MessageCircle,
-    description: 'Compradores pujan y subastas en tiempo real',
+    description: 'Ganaderos, compradores y subastas en vivo',
     to: '/whatsapp',
   },
 ]
@@ -26,11 +27,9 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-primary flex flex-col items-center justify-between px-6 py-12">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl">
-        <header className="text-center mb-12">
-          <h1 className="text-4xl md:text-6xl font-bold text-background tracking-wide mb-4">
-            AGROCONECTA CARTAMA
-          </h1>
-          <p className="text-accent text-lg md:text-xl italic">
+        <header className="text-center mb-10 md:mb-12 flex flex-col items-center gap-5">
+          <Logo variant="full" />
+          <p className="text-background text-lg md:text-xl font-medium tracking-wide max-w-md drop-shadow-sm">
             Tradición ganadera, conexión moderna
           </p>
         </header>

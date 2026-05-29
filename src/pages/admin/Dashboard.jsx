@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { formatCOP, formatDate, timeAgo } from '../../utils/format'
+import { normalizeSubastas, FALLBACK_SUBASTAS, getLoteId, getMunicipio, getGanaderoNombre } from '../../utils/subastas'
 import EstadoBadge from '../../components/admin/EstadoBadge'
 import CountdownTimer from '../../components/admin/CountdownTimer'
 
@@ -55,11 +56,15 @@ export default function Dashboard() {
   async function fetchSubastasActivas() {
     const { data, error } = await supabase
       .from('subastas')
-      .select('*, ganaderos(nombre)')
+      .select('*, ganaderos(nombre, municipio)')
       .eq('estado', 'activa')
       .order('fecha_cierre', { ascending: true })
 
-    if (!error && data) setSubastas(data)
+    if (!error && data?.length) {
+      setSubastas(normalizeSubastas(data))
+    } else {
+      setSubastas(normalizeSubastas(FALLBACK_SUBASTAS.filter((s) => s.estado === 'activa')))
+    }
   }
 
   useEffect(() => {
@@ -140,7 +145,14 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {subastas.length === 0 && !loading && (
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-gray-400">
+                      Cargando…
+                    </td>
+                  </tr>
+                )}
+                {!loading && subastas.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-gray-400">
                       No hay subastas activas
@@ -149,9 +161,9 @@ export default function Dashboard() {
                 )}
                 {subastas.map((s) => (
                   <tr key={s.id} className="border-b border-gray-100 last:border-0">
-                    <td className="py-3 pr-3 font-medium text-primary">{s.lote ?? s.id}</td>
-                    <td className="py-3 pr-3">{s.ganaderos?.nombre ?? '—'}</td>
-                    <td className="py-3 pr-3">{s.municipio ?? '—'}</td>
+                    <td className="py-3 pr-3 font-medium text-primary">{getLoteId(s)}</td>
+                    <td className="py-3 pr-3">{getGanaderoNombre(s)}</td>
+                    <td className="py-3 pr-3">{getMunicipio(s)}</td>
                     <td className="py-3 pr-3 font-semibold">{formatCOP(s.mejor_oferta)}</td>
                     <td className="py-3 pr-3">
                       <CountdownTimer fechaCierre={s.fecha_cierre} />

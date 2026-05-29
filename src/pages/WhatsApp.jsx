@@ -1,105 +1,146 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCOP } from '../utils/format'
+import { normalizeSubastas, FALLBACK_SUBASTAS, getLoteId } from '../utils/subastas'
+import { USER_IDENTITY } from '../utils/whatsapp'
 import GlobalNav from '../components/layout/GlobalNav'
 import ChatSidebar from '../components/whatsapp/ChatSidebar'
 import ChatHeader from '../components/whatsapp/ChatHeader'
 import CanalSubastasChat from '../components/whatsapp/chats/CanalSubastasChat'
-import DonHernandoChat from '../components/whatsapp/chats/DonHernandoChat'
-import FrigorificoChat from '../components/whatsapp/chats/FrigorificoChat'
-import MisPujasChat from '../components/whatsapp/chats/MisPujasChat'
-import BuyerIdentityModal from '../components/whatsapp/BuyerIdentityModal'
+import AgroconectaMainChat from '../components/whatsapp/chats/AgroconectaMainChat'
 import BidModal from '../components/whatsapp/BidModal'
 import ConfettiOverlay from '../components/whatsapp/ConfettiOverlay'
 
 const LOTE_ID = 'AC-2024-047'
-const BUYER_STORAGE_KEY = 'agroconecta-buyer'
+const USER_STORAGE_KEY = 'agroconecta-user'
 const delay = (ms) => new Promise((r) => setTimeout(r, ms))
 
-function loadStoredBuyer() {
+function loadStoredUser() {
   try {
-    const raw = localStorage.getItem(BUYER_STORAGE_KEY)
+    const raw = localStorage.getItem(USER_STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
   }
 }
 
+const DEMO_STEPS = [
+  'Usuario solicita acceso…',
+  'Confirma el pago…',
+  'Entra al canal de subastas…',
+  'Hace su oferta…',
+  'Otro comprador sube la puja…',
+  '¡Lote adjudicado!',
+]
+
 export default function WhatsApp() {
-  const [activeChat, setActiveChat] = useState('canal')
+  const storedUser = loadStoredUser()
+  const mainChatRef = useRef(null)
+  const demoRunningRef = useRef(false)
+
+  const [activeChat, setActiveChat] = useState('main')
   const [mobileShowChat, setMobileShowChat] = useState(false)
   const [activeSubastas, setActiveSubastas] = useState([])
   const [liveSubasta, setLiveSubasta] = useState(null)
-  const [demoMessages, setDemoMessages] = useState([])
   const [liveMessages, setLiveMessages] = useState([])
-  const [typing, setTyping] = useState(false)
   const [demoRunning, setDemoRunning] = useState(false)
+  const [demoProgress, setDemoProgress] = useState(null)
   const [loteClosed, setLoteClosed] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
-  const [canalPreview, setCanalPreview] = useState('LOTE ADJUDICADO ✓')
+  const [canalPreview, setCanalPreview] = useState('Subastas en vivo')
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [useFallback, setUseFallback] = useState(false)
+  const [highlightMain, setHighlightMain] = useState(false)
 
-  const [buyer, setBuyer] = useState(loadStoredBuyer)
-  const [showIdentityModal, setShowIdentityModal] = useState(false)
+  const [user, setUser] = useState(storedUser)
+  const [isSubscribed, setIsSubscribed] = useState(!!storedUser)
   const [bidTarget, setBidTarget] = useState(null)
-  const [sessionBids, setSessionBids] = useState([])
+  const [bidDemoAuto, setBidDemoAuto] = useState(null)
   const seenPujaIds = useRef(new Set())
 
-  function selectBuyer(identity) {
-    setBuyer(identity)
-    localStorage.setItem(BUYER_STORAGE_KEY, JSON.stringify(identity))
+  function activateSubscription() {
+    setIsSubscribed(true)
+    setUser(USER_IDENTITY)
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(USER_IDENTITY))
   }
 
-  const fetchActiveSubastas = useCallback(async () => {
-    const { data } = await supabase
+  const fetchActiveSubastas = useCallback(async (silent = false) => {
+    if (!silent) setInitialLoading(true)
+
+    const { data, error } = await supabase
       .from('subastas')
-      .select('*, ganaderos(nombre)')
+      .select('*, ganaderos(nombre, municipio)')
       .eq('estado', 'activa')
       .order('fecha_cierre', { ascending: true })
 
-    setActiveSubastas(data ?? [])
+    if (error || !data?.length) {
+      const fallback = normalizeSubastas(FALLBACK_SUBASTAS)
+      setActiveSubastas(fallback)
+      setUseFallback(!!error || !data?.length)
+      const lote47 = fallback.find((s) => getLoteId(s).includes('047'))
+      if (lote47) {
+        setLiveSubasta(lote47)
+        setLoteClosed(false)
+      }
+      if (!silent) setInitialLoading(false)
+      return fallback
+    }
 
-    const lote47 = data?.find((s) => s.lote?.includes('047') || s.lote === LOTE_ID)
+    setUseFallback(false)
+    const normalized = normalizeSubastas(data)
+    setActiveSubastas(normalized)
+
+    const lote47 = normalized.find((s) => getLoteId(s).includes('047') || getLoteId(s) === LOTE_ID)
     if (lote47) {
       setLiveSubasta(lote47)
       setLoteClosed(false)
     } else {
       const { data: closed } = await supabase
         .from('subastas')
-        .select('*')
-        .or(`lote.eq.${LOTE_ID},lote.ilike.%047%`)
+        .select('*, ganaderos(nombre, municipio)')
+        .or(`lote.eq.${LOTE_ID},lote.ilike.%047%,descripcion.ilike.%047%`)
         .eq('estado', 'cerrada')
         .maybeSingle()
       if (closed) {
-        setLiveSubasta(closed)
+        setLiveSubasta(normalizeSubastas([closed])[0])
         setLoteClosed(true)
       }
     }
+
+    if (!silent) setInitialLoading(false)
+    return normalized
   }, [])
 
+  function appendCanalMessage(id, text) {
+    setLiveMessages((prev) => {
+      if (prev.some((m) => m.id === id)) return prev
+      return [...prev, { id, text, time: 'ahora' }]
+    })
+  }
+
+  function patchSubastaLocal(fields) {
+    setLiveSubasta((prev) => (prev ? { ...prev, ...fields } : prev))
+    setActiveSubastas((prev) =>
+      prev.map((s) => {
+        const match = liveSubasta ? s.id === liveSubasta.id : getLoteId(s).includes('047')
+        return match ? { ...s, ...fields } : s
+      })
+    )
+  }
+
   const handleNewPuja = useCallback(async (puja) => {
+    if (demoRunningRef.current) return
     if (!puja?.id || seenPujaIds.current.has(puja.id)) return
     seenPujaIds.current.add(puja.id)
 
-    const { data: subasta } = await supabase
-      .from('subastas')
-      .select('lote')
-      .eq('id', puja.subasta_id)
-      .maybeSingle()
-
-    const lote = subasta?.lote ?? `#${puja.subasta_id}`
+    const lote = liveSubasta ? getLoteId(liveSubasta) : `#${puja.subasta_id}`
     setCanalPreview(`${puja.comprador} · ${formatCOP(puja.monto)}`)
-
-    setLiveMessages((prev) => [
-      ...prev,
-      {
-        id: `puja-${puja.id}`,
-        text: `🔔 *NUEVA PUJA* — ${puja.comprador} ofrece ${formatCOP(puja.monto)} por ${lote}`,
-        time: 'ahora',
-      },
-    ])
-
-    await fetchActiveSubastas()
-  }, [fetchActiveSubastas])
+    appendCanalMessage(
+      `puja-${puja.id}`,
+      `🔔 *NUEVA PUJA* — ${puja.comprador} ofrece ${formatCOP(puja.monto)} por ${lote}`
+    )
+    await fetchActiveSubastas(true)
+  }, [fetchActiveSubastas, liveSubasta])
 
   useEffect(() => {
     fetchActiveSubastas()
@@ -107,30 +148,23 @@ export default function WhatsApp() {
     const channel = supabase
       .channel('whatsapp-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'subastas' }, (payload) => {
-        fetchActiveSubastas()
+        if (demoRunningRef.current) return
+        fetchActiveSubastas(true)
 
         if (payload.eventType === 'UPDATE') {
           const updated = payload.new
           if (updated.estado === 'cerrada' && payload.old?.estado === 'activa') {
-            setCanalPreview(`¡${updated.lote ?? 'Lote'} ADJUDICADO! ✓`)
-            setLiveMessages((prev) => {
-              const id = `cerrada-${updated.id}`
-              if (prev.some((m) => m.id === id)) return prev
-              return [
-                ...prev,
-                {
-                  id,
-                  text: `🔨 *¡${updated.lote ?? 'LOTE'} ADJUDICADO!*
+            setCanalPreview('LOTE ADJUDICADO ✓')
+            appendCanalMessage(
+              `cerrada-${updated.id}`,
+              `🔨 *¡${updated.lote ?? 'LOTE'} ADJUDICADO!*
 ━━━━━━━━━━━━━━━
 🏆 Ganador: ${updated.mejor_ofertante ?? '—'}
 💰 Precio final: ${formatCOP(updated.mejor_oferta)}
 📋 Guía ICA en proceso
-✅ Coordinando transporte`,
-                  time: 'ahora',
-                },
-              ]
-            })
-            if (updated.lote?.includes('047')) {
+✅ Coordinando transporte`
+            )
+            if (String(updated.lote ?? '').includes('047') || String(updated.descripcion ?? '').includes('047')) {
               setLoteClosed(true)
               setShowConfetti(true)
               setTimeout(() => setShowConfetti(false), 5000)
@@ -143,117 +177,159 @@ export default function WhatsApp() {
       })
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => supabase.removeChannel(channel)
   }, [fetchActiveSubastas, handleNewPuja])
 
   async function handleBid(subasta, monto) {
-    if (!buyer) return false
+    if (!isSubscribed) return false
 
+    const comprador = user?.name ?? USER_IDENTITY.name
     const mejorOferta = Number(subasta.mejor_oferta) || 0
-    if (monto <= mejorOferta) return false
+    if (monto <= mejorOferta || !subasta.id) return false
 
-    if (!subasta.id) return false
+    if (demoRunningRef.current || useFallback) {
+      patchSubastaLocal({ mejor_oferta: monto, mejor_ofertante: comprador })
+      const lote = getLoteId(subasta)
+      setCanalPreview(`${comprador} · ${formatCOP(monto)}`)
+      appendCanalMessage(
+        `demo-puja-${Date.now()}`,
+        `🔔 *NUEVA PUJA* — ${comprador} ofrece ${formatCOP(monto)} por ${lote}`
+      )
+      return true
+    }
 
     const { error: pujaError } = await supabase.from('pujas').insert({
       subasta_id: subasta.id,
-      comprador: buyer.name,
+      comprador,
       monto,
     })
     if (pujaError) return false
 
     const { error: updateError } = await supabase
       .from('subastas')
-      .update({ mejor_oferta: monto, mejor_ofertante: buyer.name })
+      .update({ mejor_oferta: monto, mejor_ofertante: comprador })
       .eq('id', subasta.id)
     if (updateError) return false
-
-    setSessionBids((prev) => [
-      {
-        subasta_id: subasta.id,
-        lote: subasta.lote ?? `Lote #${subasta.id}`,
-        monto,
-        timestamp: new Date().toISOString(),
-        comprador: buyer.name,
-      },
-      ...prev,
-    ])
 
     return true
   }
 
-  function requestBid(subasta) {
-    if (!buyer) {
-      setShowIdentityModal(true)
-      setBidTarget(subasta)
+  function requestBid(subasta, meta) {
+    if (meta?.blocked || !isSubscribed) {
+      setHighlightMain(true)
+      setTimeout(() => setHighlightMain(false), 4000)
       return
     }
+    setBidDemoAuto(null)
     setBidTarget(subasta)
   }
 
-  async function updateSubasta(fields) {
-    if (!liveSubasta?.id) {
-      setLiveSubasta((prev) => ({ ...prev, ...fields }))
-      return
+  async function updateSubasta(fields, { silent = false } = {}) {
+    patchSubastaLocal(fields)
+
+    if (demoRunningRef.current || useFallback || silent) return
+
+    if (liveSubasta?.id) {
+      await supabase.from('subastas').update(fields).eq('id', liveSubasta.id)
     }
-    await supabase.from('subastas').update(fields).eq('id', liveSubasta.id)
-    setLiveSubasta((prev) => ({ ...prev, ...fields }))
-    await fetchActiveSubastas()
+  }
+
+  function getDemoSubasta() {
+    return (
+      liveSubasta ??
+      activeSubastas.find((s) => getLoteId(s).includes('047')) ??
+      activeSubastas[0]
+    )
+  }
+
+  async function runDemoBid(subasta, monto) {
+    setBidDemoAuto({ monto, submitAfter: 1800 })
+    setBidTarget(subasta)
+    await delay(3200)
+    setBidTarget(null)
+    setBidDemoAuto(null)
   }
 
   async function runDemo() {
     if (demoRunning) return
+
+    demoRunningRef.current = true
     setDemoRunning(true)
-    setDemoMessages([])
+    setLiveMessages([])
     setLoteClosed(false)
     setShowConfetti(false)
-    setActiveChat('canal')
+    setHighlightMain(false)
+    setBidTarget(null)
+    setBidDemoAuto(null)
+    seenPujaIds.current.clear()
+
+    mainChatRef.current?.reset()
+    setIsSubscribed(false)
+    setUser(null)
+    setActiveChat('main')
     setMobileShowChat(true)
 
-    setTyping(true)
-    await delay(2000)
-    setTyping(false)
+    const setStep = (n) => setDemoProgress({ current: n, total: 6, label: DEMO_STEPS[n - 1] })
 
-    setDemoMessages([
-      { id: 'demo-1', text: '🔔 *NUEVA PUJA* — Carnes Cartama ofrece $8.500.000 por Lote #AC-2024-047', time: 'ahora' },
-    ])
-    setCanalPreview('Carnes Cartama · $8.500.000')
-    await updateSubasta({ mejor_oferta: 8500000, mejor_ofertante: 'Carnes Cartama' })
+    setStep(1)
+    await mainChatRef.current?.simulateAction('🔓 Comprar ganado')
+    await delay(800)
 
-    await delay(3000)
-    setDemoMessages((m) => [
-      ...m,
-      { id: 'demo-2', text: '🔔 *NUEVA PUJA* — Frigorífico El Rebaño sube a $9.100.000', time: 'ahora' },
-    ])
-    setCanalPreview('Frigorífico El Rebaño · $9.100.000')
-    await updateSubasta({ mejor_oferta: 9100000, mejor_ofertante: 'Frigorífico El Rebaño' })
+    setStep(2)
+    await mainChatRef.current?.simulateAction('✅ Ya pagué')
+    await delay(1000)
 
-    await delay(3000)
-    setDemoMessages((m) => [
-      ...m,
-      {
-        id: 'demo-3',
-        text: `🔨 *¡LOTE #AC-2024-047 ADJUDICADO!*
+    setStep(3)
+    await mainChatRef.current?.simulateAction('📢 Entrar al canal')
+    await delay(1200)
+
+    const subasta = getDemoSubasta()
+    const baseOffer = Number(subasta?.mejor_oferta) || 8200000
+    const userOffer = baseOffer + 200000
+
+    setStep(4)
+    setActiveChat('canal')
+    await delay(600)
+    await runDemoBid(subasta, userOffer)
+
+    setStep(5)
+    await delay(800)
+    const competitorOffer = userOffer + 600000
+    setCanalPreview(`Frigorífico El Rebaño · ${formatCOP(competitorOffer)}`)
+    appendCanalMessage(
+      'demo-puja-competitor',
+      `🔔 *NUEVA PUJA* — Frigorífico El Rebaño sube a ${formatCOP(competitorOffer)}`
+    )
+    await updateSubasta(
+      { mejor_oferta: competitorOffer, mejor_ofertante: 'Frigorífico El Rebaño' },
+      { silent: true }
+    )
+    await delay(2200)
+
+    setStep(6)
+    appendCanalMessage(
+      'demo-cerrada',
+      `🔨 *¡LOTE #AC-2024-047 ADJUDICADO!*
 ━━━━━━━━━━━━━━━
 🏆 Ganador: Frigorífico El Rebaño
-💰 Precio final: $9.100.000
+💰 Precio final: ${formatCOP(competitorOffer)}
 📋 Guía ICA en proceso
-✅ Coordinando transporte`,
-        time: 'ahora',
-      },
-    ])
+✅ Coordinando transporte`
+    )
     setCanalPreview('LOTE ADJUDICADO ✓')
-    await updateSubasta({
-      mejor_oferta: 9100000,
-      mejor_ofertante: 'Frigorífico El Rebaño',
-      estado: 'cerrada',
-    })
+    await updateSubasta(
+      { mejor_oferta: competitorOffer, mejor_ofertante: 'Frigorífico El Rebaño', estado: 'cerrada' },
+      { silent: true }
+    )
     setLoteClosed(true)
     setShowConfetti(true)
-    setDemoRunning(false)
 
-    setTimeout(() => setShowConfetti(false), 5000)
+    demoRunningRef.current = false
+    setDemoRunning(false)
+    setTimeout(() => {
+      setDemoProgress(null)
+      setShowConfetti(false)
+    }, 4500)
   }
 
   function handleSelectChat(id) {
@@ -262,32 +338,30 @@ export default function WhatsApp() {
   }
 
   function renderChat() {
-    switch (activeChat) {
-      case 'hernando':
-        return <DonHernandoChat />
-      case 'frigorifico':
-        return <FrigorificoChat />
-      case 'mis-pujas':
-        return (
-          <MisPujasChat
-            sessionBids={sessionBids}
-            subastas={activeSubastas}
-            buyerName={buyer?.name}
-          />
-        )
-      default:
-        return (
-          <CanalSubastasChat
-            activeSubastas={activeSubastas}
-            demoMessages={demoMessages}
-            liveMessages={liveMessages}
-            typing={typing}
-            loteClosed={loteClosed}
-            onBid={requestBid}
-            buyer={buyer}
-          />
-        )
+    if (activeChat === 'main') {
+      return (
+        <AgroconectaMainChat
+          ref={mainChatRef}
+          onSubscribed={activateSubscription}
+          onSwitchToCanal={() => {
+            setActiveChat('canal')
+            setMobileShowChat(true)
+          }}
+        />
+      )
     }
+
+    return (
+      <CanalSubastasChat
+        activeSubastas={activeSubastas}
+        liveMessages={liveMessages}
+        loteClosed={loteClosed}
+        onBid={requestBid}
+        isSubscribed={isSubscribed}
+        loading={initialLoading}
+        useFallback={useFallback}
+      />
+    )
   }
 
   return (
@@ -302,8 +376,8 @@ export default function WhatsApp() {
           onSelect={handleSelectChat}
           hidden={mobileShowChat}
           canalPreview={canalPreview}
-          buyer={buyer}
-          onChangeBuyer={() => setShowIdentityModal(true)}
+          userName={isSubscribed ? user?.name : null}
+          highlightMain={highlightMain}
         />
 
         <div
@@ -328,25 +402,34 @@ export default function WhatsApp() {
           )}
         </div>
 
+        {demoProgress && (
+          <div className="fixed top-4 right-4 z-30 bg-white rounded-xl shadow-lg p-4 w-64">
+            <p className="text-xs text-[#667781] mb-1">
+              {demoProgress.current}/{demoProgress.total}
+            </p>
+            <p className="text-sm font-medium text-[#075E54] mb-2">{demoProgress.label}</p>
+            <div className="h-1.5 bg-[#E9EDEF] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#25D366] rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${(demoProgress.current / demoProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <ConfettiOverlay active={showConfetti} />
       </div>
 
-      {showIdentityModal && (
-        <BuyerIdentityModal
-          onSelect={(identity) => {
-            selectBuyer(identity)
-            setShowIdentityModal(false)
-          }}
-          onClose={() => setShowIdentityModal(false)}
-        />
-      )}
-
-      {bidTarget && buyer && !showIdentityModal && (
+      {bidTarget && isSubscribed && (
         <BidModal
           subasta={activeSubastas.find((s) => s.id === bidTarget.id) ?? bidTarget}
-          buyer={buyer}
-          onClose={() => setBidTarget(null)}
+          buyerName={user?.name ?? USER_IDENTITY.name}
+          onClose={() => {
+            setBidTarget(null)
+            setBidDemoAuto(null)
+          }}
           onSubmit={handleBid}
+          demoAuto={bidDemoAuto}
         />
       )}
     </div>
