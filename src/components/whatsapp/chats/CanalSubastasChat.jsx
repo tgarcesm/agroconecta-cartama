@@ -78,7 +78,7 @@ export default function CanalSubastasChat({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [liveMessages, activeSubastas, lockMessage])
+  }, [liveMessages.length, lockMessage])
 
   function handleBidAttempt(subasta) {
     if (!isSubscribed) {
@@ -102,7 +102,7 @@ export default function CanalSubastasChat({
 
         <ChatBubble type="received" text={MSG_045} time="ayer 15:42" />
 
-        {loading ? (
+        {loading && displaySubastas.length === 0 ? (
           <p className="text-center text-[#667781] text-sm py-6">Cargando…</p>
         ) : displaySubastas.length === 0 ? (
           <SystemMessage>No hay subastas activas en este momento</SystemMessage>

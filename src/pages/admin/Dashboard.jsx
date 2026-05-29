@@ -34,14 +34,14 @@ const RECENT_ACTIVITY = [
 
 function KpiCard({ label, value, sub, icon: Icon, iconColor = 'text-primary' }) {
   return (
-    <div className="bg-white rounded-xl shadow-md p-5 flex items-start gap-4">
-      <div className={`p-3 rounded-lg bg-primary/10 ${iconColor}`}>
-        <Icon className="w-6 h-6" />
+    <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
+      <div className={`p-2.5 sm:p-3 rounded-lg bg-primary/10 shrink-0 ${iconColor}`}>
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
       </div>
-      <div>
-        <p className="text-gray-500 text-sm">{label}</p>
-        <p className="text-3xl font-bold text-primary mt-1">{value}</p>
-        <p className="text-gray-400 text-sm mt-1">{sub}</p>
+      <div className="min-w-0">
+        <p className="text-gray-500 text-xs sm:text-sm">{label}</p>
+        <p className="text-2xl sm:text-3xl font-bold text-primary mt-0.5 sm:mt-1">{value}</p>
+        <p className="text-gray-400 text-xs sm:text-sm mt-0.5 sm:mt-1">{sub}</p>
       </div>
     </div>
   )
@@ -95,10 +95,10 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-primary">Buenos días, Administrador</h2>
-        <p className="text-gray-500 capitalize">{formatDate()}</p>
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl sm:text-2xl font-semibold text-primary">Buenos días, Administrador</h2>
+        <p className="text-gray-500 text-sm capitalize">{formatDate()}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -129,10 +129,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        <div className="xl:col-span-3 bg-white rounded-xl shadow-md p-5">
-          <h3 className="text-lg font-semibold text-primary mb-4">Subastas Activas</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+        <div className="xl:col-span-3 bg-white rounded-xl shadow-md p-4 sm:p-5">
+          <h3 className="text-base sm:text-lg font-semibold text-primary mb-4">Subastas Activas</h3>
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table className="w-full text-sm min-w-[640px]">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-gray-500">
                   <th className="pb-3 pr-3 font-medium">Lote</th>
@@ -186,9 +186,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="xl:col-span-2 bg-white rounded-xl shadow-md p-5">
-          <h3 className="text-lg font-semibold text-primary mb-4">Proyección de Ingresos Año 1</h3>
-          <ResponsiveContainer width="100%" height={280}>
+        <div className="xl:col-span-2 bg-white rounded-xl shadow-md p-4 sm:p-5">
+          <h3 className="text-base sm:text-lg font-semibold text-primary mb-4">Proyección de Ingresos Año 1</h3>
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={CHART_DATA} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="trimestre" tick={{ fontSize: 12 }} />
@@ -205,18 +205,20 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md p-5">
-        <h3 className="text-lg font-semibold text-primary mb-4">Actividad Reciente</h3>
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-5">
+        <h3 className="text-base sm:text-lg font-semibold text-primary mb-4">Actividad Reciente</h3>
         <ul className="space-y-3">
           {RECENT_ACTIVITY.map((item, i) => (
-            <li key={i} className="flex items-center gap-3 text-sm">
-              <span
-                className={`w-2 h-2 rounded-full shrink-0 ${
-                  item.type === 'positive' ? 'bg-primary' : 'bg-accent'
-                }`}
-              />
-              <span className="flex-1 text-gray-700">{item.text}</span>
-              <span className="text-gray-400 text-xs shrink-0">{timeAgo(item.time)}</span>
+            <li key={i} className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3 text-sm">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    item.type === 'positive' ? 'bg-primary' : 'bg-accent'
+                  }`}
+                />
+                <span className="text-gray-700">{item.text}</span>
+              </div>
+              <span className="text-gray-400 text-xs shrink-0 pl-5 sm:pl-0">{timeAgo(item.time)}</span>
             </li>
           ))}
         </ul>

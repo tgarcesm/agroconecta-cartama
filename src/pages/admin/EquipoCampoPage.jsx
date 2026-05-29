@@ -28,8 +28,8 @@ const TEAM = [
 
 export default function EquipoCampoPage() {
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-primary">Equipo de Campo</h2>
+    <div className="space-y-5 sm:space-y-6">
+      <h2 className="text-xl sm:text-2xl font-semibold text-primary">Equipo de Campo</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {TEAM.map((member) => (

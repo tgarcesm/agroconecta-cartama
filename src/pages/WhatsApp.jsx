@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCOP } from '../utils/format'
-import { normalizeSubastas, FALLBACK_SUBASTAS, getLoteId } from '../utils/subastas'
+import { normalizeSubasta, normalizeSubastas, FALLBACK_SUBASTAS, getLoteId } from '../utils/subastas'
 import { USER_IDENTITY } from '../utils/whatsapp'
 import GlobalNav from '../components/layout/GlobalNav'
 import ChatSidebar from '../components/whatsapp/ChatSidebar'
@@ -37,6 +37,8 @@ export default function WhatsApp() {
   const storedUser = loadStoredUser()
   const mainChatRef = useRef(null)
   const demoRunningRef = useRef(false)
+  const hasLoadedOnceRef = useRef(false)
+  const liveSubastaRef = useRef(null)
 
   const [activeChat, setActiveChat] = useState('main')
   const [mobileShowChat, setMobileShowChat] = useState(false)
@@ -64,8 +66,13 @@ export default function WhatsApp() {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(USER_IDENTITY))
   }
 
+  useEffect(() => {
+    liveSubastaRef.current = liveSubasta
+  }, [liveSubasta])
+
   const fetchActiveSubastas = useCallback(async (silent = false) => {
-    if (!silent) setInitialLoading(true)
+    const showLoading = !silent && !hasLoadedOnceRef.current
+    if (showLoading) setInitialLoading(true)
 
     const { data, error } = await supabase
       .from('subastas')
@@ -82,7 +89,8 @@ export default function WhatsApp() {
         setLiveSubasta(lote47)
         setLoteClosed(false)
       }
-      if (!silent) setInitialLoading(false)
+      hasLoadedOnceRef.current = true
+      if (showLoading) setInitialLoading(false)
       return fallback
     }
 
@@ -107,9 +115,51 @@ export default function WhatsApp() {
       }
     }
 
-    if (!silent) setInitialLoading(false)
+    hasLoadedOnceRef.current = true
+    if (showLoading) setInitialLoading(false)
     return normalized
   }, [])
+
+  const displaySubastas = useMemo(() => {
+    if (activeSubastas.length > 0) {
+      if (liveSubasta && !activeSubastas.some((s) => s.id === liveSubasta.id)) {
+        return [...activeSubastas, liveSubasta]
+      }
+      return activeSubastas
+    }
+    return liveSubasta ? [liveSubasta] : []
+  }, [activeSubastas, liveSubasta])
+
+  const applySubastaUpdate = useCallback((raw) => {
+    const updated = normalizeSubasta(raw)
+    if (!updated?.id) return
+
+    if (updated.estado === 'activa') {
+      setActiveSubastas((prev) => {
+        const idx = prev.findIndex((s) => s.id === updated.id)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = { ...prev[idx], ...updated }
+          return next
+        }
+        fetchActiveSubastas(true)
+        return prev
+      })
+    } else if (updated.estado === 'cerrada') {
+      setActiveSubastas((prev) => prev.filter((s) => s.id !== updated.id))
+    }
+
+    const tracked = liveSubastaRef.current
+    const isTracked =
+      tracked?.id === updated.id ||
+      getLoteId(updated).includes('047') ||
+      String(raw.lote ?? '').includes('047') ||
+      String(raw.descripcion ?? '').includes('047')
+
+    if (isTracked) {
+      setLiveSubasta((prev) => ({ ...(prev ?? {}), ...updated }))
+    }
+  }, [fetchActiveSubastas])
 
   function appendCanalMessage(id, text) {
     setLiveMessages((prev) => {
@@ -128,47 +178,63 @@ export default function WhatsApp() {
     )
   }
 
-  const handleNewPuja = useCallback(async (puja) => {
+  const handleNewPuja = useCallback((puja) => {
     if (demoRunningRef.current) return
     if (!puja?.id || seenPujaIds.current.has(puja.id)) return
     seenPujaIds.current.add(puja.id)
 
-    const lote = liveSubasta ? getLoteId(liveSubasta) : `#${puja.subasta_id}`
+    const lote = liveSubastaRef.current
+      ? getLoteId(liveSubastaRef.current)
+      : `#${puja.subasta_id}`
     setCanalPreview(`${puja.comprador} · ${formatCOP(puja.monto)}`)
     appendCanalMessage(
       `puja-${puja.id}`,
       `🔔 *NUEVA PUJA* — ${puja.comprador} ofrece ${formatCOP(puja.monto)} por ${lote}`
     )
-    await fetchActiveSubastas(true)
-  }, [fetchActiveSubastas, liveSubasta])
+
+    if (puja.subasta_id && puja.monto) {
+      const fields = { mejor_oferta: puja.monto, mejor_ofertante: puja.comprador }
+      setActiveSubastas((prev) =>
+        prev.map((s) => (s.id === puja.subasta_id ? { ...s, ...fields } : s))
+      )
+      setLiveSubasta((prev) =>
+        prev?.id === puja.subasta_id ? { ...prev, ...fields } : prev
+      )
+    }
+  }, [])
 
   useEffect(() => {
     fetchActiveSubastas()
 
     const channel = supabase
       .channel('whatsapp-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'subastas' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'subastas' }, () => {
         if (demoRunningRef.current) return
         fetchActiveSubastas(true)
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'subastas' }, (payload) => {
+        if (demoRunningRef.current) return
+        applySubastaUpdate(payload.new)
 
-        if (payload.eventType === 'UPDATE') {
+        if (payload.new.estado === 'cerrada' && payload.old?.estado === 'activa') {
           const updated = payload.new
-          if (updated.estado === 'cerrada' && payload.old?.estado === 'activa') {
-            setCanalPreview('LOTE ADJUDICADO ✓')
-            appendCanalMessage(
-              `cerrada-${updated.id}`,
-              `🔨 *¡${updated.lote ?? 'LOTE'} ADJUDICADO!*
+          setCanalPreview('LOTE ADJUDICADO ✓')
+          appendCanalMessage(
+            `cerrada-${updated.id}`,
+            `🔨 *¡${updated.lote ?? 'LOTE'} ADJUDICADO!*
 ━━━━━━━━━━━━━━━
 🏆 Ganador: ${updated.mejor_ofertante ?? '—'}
 💰 Precio final: ${formatCOP(updated.mejor_oferta)}
 📋 Guía ICA en proceso
 ✅ Coordinando transporte`
-            )
-            if (String(updated.lote ?? '').includes('047') || String(updated.descripcion ?? '').includes('047')) {
-              setLoteClosed(true)
-              setShowConfetti(true)
-              setTimeout(() => setShowConfetti(false), 5000)
-            }
+          )
+          if (
+            String(updated.lote ?? '').includes('047') ||
+            String(updated.descripcion ?? '').includes('047')
+          ) {
+            setLoteClosed(true)
+            setShowConfetti(true)
+            setTimeout(() => setShowConfetti(false), 5000)
           }
         }
       })
@@ -178,7 +244,7 @@ export default function WhatsApp() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [fetchActiveSubastas, handleNewPuja])
+  }, [fetchActiveSubastas, applySubastaUpdate, handleNewPuja])
 
   async function handleBid(subasta, monto) {
     if (!isSubscribed) return false
@@ -353,7 +419,7 @@ export default function WhatsApp() {
 
     return (
       <CanalSubastasChat
-        activeSubastas={activeSubastas}
+        activeSubastas={displaySubastas}
         liveMessages={liveMessages}
         loteClosed={loteClosed}
         onBid={requestBid}

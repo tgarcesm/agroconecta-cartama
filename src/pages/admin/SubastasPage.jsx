@@ -51,8 +51,8 @@ export default function SubastasPage() {
     filter === 'todas' ? subastas : subastas.filter((s) => s.estado === filter)
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-primary">Subastas</h2>
+    <div className="space-y-5 sm:space-y-6">
+      <h2 className="text-xl sm:text-2xl font-semibold text-primary">Subastas</h2>
 
       <div className="flex gap-2 flex-wrap">
         {FILTERS.map((f) => (
@@ -60,7 +60,7 @@ export default function SubastasPage() {
             key={f.id}
             type="button"
             onClick={() => setFilter(f.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
               filter === f.id
                 ? 'bg-primary text-background'
                 : 'bg-white text-gray-600 hover:bg-gray-100 shadow-sm'
@@ -114,11 +114,11 @@ export default function SubastasPage() {
                 </div>
               </div>
 
-              <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+              <div className="px-4 py-3 border-t border-gray-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <CountdownTimer fechaCierre={s.fecha_cierre} />
                 <button
                   type="button"
-                  className="text-sm bg-primary text-background px-4 py-1.5 rounded-md hover:bg-primary-light transition-colors"
+                  className="text-sm bg-primary text-background px-4 py-1.5 rounded-md hover:bg-primary-light transition-colors w-full sm:w-auto text-center"
                 >
                   Ver detalle
                 </button>

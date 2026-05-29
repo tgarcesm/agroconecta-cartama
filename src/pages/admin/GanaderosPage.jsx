@@ -59,13 +59,13 @@ export default function GanaderosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-2xl font-semibold text-primary">Ganaderos</h2>
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xl sm:text-2xl font-semibold text-primary">Ganaderos</h2>
         <button
           type="button"
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 bg-primary text-background px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-light transition-colors"
+          className="flex items-center justify-center gap-2 bg-primary text-background px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-light transition-colors w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           Nuevo Ganadero
@@ -77,12 +77,12 @@ export default function GanaderosPage() {
         placeholder="Buscar por nombre o municipio…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full max-w-md px-4 py-2 rounded-lg border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        className="w-full sm:max-w-md px-4 py-2 rounded-lg border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-500 bg-gray-50">
                 <th className="px-4 py-3 font-medium">Nombre</th>

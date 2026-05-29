@@ -19,12 +19,12 @@ export default function CompradoresPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-semibold text-primary">Compradores</h2>
+    <div className="space-y-5 sm:space-y-6">
+      <h2 className="text-xl sm:text-2xl font-semibold text-primary">Compradores</h2>
 
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[480px]">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-500 bg-gray-50">
                 <th className="px-4 py-3 font-medium">Nombre</th>
