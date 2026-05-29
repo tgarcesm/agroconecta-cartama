@@ -1,0 +1,38 @@
+export const CONVERSATIONS = [
+  {
+    id: 'canal',
+    name: '🏪 Canal Subastas',
+    lastMessage: 'LOTE ADJUDICADO ✓',
+    timestamp: 'ahora',
+    unread: 3,
+    headerTitle: 'Agroconecta Cartama',
+    headerSubtitle: 'Canal de Subastas · En línea',
+  },
+  {
+    id: 'hernando',
+    name: '👤 Don Hernando Ríos',
+    lastMessage: 'Gracias, muy buena experiencia',
+    timestamp: '10:32',
+    unread: 0,
+    headerTitle: 'Don Hernando Ríos',
+    headerSubtitle: 'en línea',
+  },
+  {
+    id: 'frigorifico',
+    name: '🏢 Frigorífico El Rebaño',
+    lastMessage: '¿Hay lotes disponibles mañana?',
+    timestamp: 'ayer',
+    unread: 0,
+    headerTitle: 'Frigorífico El Rebaño',
+    headerSubtitle: 'comprador verificado',
+  },
+  {
+    id: 'mis-pujas',
+    name: '💰 Mis Pujas',
+    lastMessage: 'Tus ofertas activas',
+    timestamp: '',
+    unread: 0,
+    headerTitle: 'Mis Pujas',
+    headerSubtitle: 'Portal comprador',
+  },
+]

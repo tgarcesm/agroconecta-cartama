@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+:root {
+  --global-nav-height: 3.5rem;
+}
+
+body {
+  margin: 0;
+}
+
+.global-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--global-nav-height);
+  z-index: 30;
+}
+
+.layout-with-nav {
+  padding-top: var(--global-nav-height);
+}
+
+@media (max-width: 767px) {
+  .layout-with-nav-mobile-off {
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .md-layout-with-nav {
+    padding-top: var(--global-nav-height);
+  }
+}
+
+.sidebar-below-nav {
+  top: var(--global-nav-height);
+  height: calc(100vh - var(--global-nav-height));
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.35s ease-out;
+}
+
+@keyframes scale-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-checkmark .check-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #1E4D2B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: scale-in 0.5s ease-out forwards;
+  box-shadow: 0 4px 20px rgba(30, 77, 43, 0.35);
+}
+
+/* WhatsApp simulator */
+.whatsapp-bg {
+  background-color: #ECE5DD;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23C8C2BA' fill-opacity='0.25'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.typing-dot:nth-child(1) { animation: typing-bounce 1.2s infinite 0s; }
+.typing-dot:nth-child(2) { animation: typing-bounce 1.2s infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typing-bounce 1.2s infinite 0.4s; }
+
+@keyframes demo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); transform: scale(1); }
+  50% { box-shadow: 0 0 0 12px rgba(37, 211, 102, 0); transform: scale(1.03); }
+}
+
+.demo-pulse-btn {
+  animation: demo-pulse 2s ease-in-out infinite;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.confetti-particle {
+  position: absolute;
+  top: -20px;
+  border-radius: 2px;
+  animation: confetti-fall linear forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shake 0.45s ease-in-out;
+}
